@@ -1,9 +1,4 @@
-# Backend/main.py
-# FastAPI backend with 3 features:
-#   1. POST /summarize      — summarize plain text + extract keywords
-#   2. POST /upload-pdf     — extract text from PDF, summarize + extract keywords
-#
-# pip install: fastapi uvicorn transformers torch pdfplumber python-multipart yake
+
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,9 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Load summarization model once at startup ──────────────────────────────────
-# Using facebook/bart-large-cnn — a popular summarization model
-# This loads once and stays in memory for fast responses
+
 print("Loading summarization model...")
 summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
 print("Model ready!")
@@ -41,7 +34,7 @@ class SummarizeResponse(BaseModel):
 
 # ── Keyword extraction helper ─────────────────────────────────────────────────
 # Uses YAKE (Yet Another Keyword Extractor) — lightweight, no model needed
-# Returns top N keywords sorted by relevance
+
 def extract_keywords(text: str, max_keywords: int = 8) -> list[str]:
     try:
         kw_extractor = yake.KeywordExtractor(
@@ -91,7 +84,7 @@ async def summarize(request: SummarizeRequest):
 
     return SummarizeResponse(summary=summary, keywords=keywords)
 
-# ── ENDPOINT 2: POST /upload-pdf ─────────────────────────────────────────────
+#  ENDPOINT 2: POST /upload-pdf 
 # Accepts a PDF file upload, extracts text, returns summary + keywords
 @app.post("/upload-pdf", response_model=SummarizeResponse)
 async def upload_pdf(file: UploadFile = File(...)):
