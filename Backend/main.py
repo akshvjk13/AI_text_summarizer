@@ -18,7 +18,7 @@ app.add_middleware(
 )
 
 # ── HuggingFace Inference API ─────────────────────────────────────────────────
-HF_API_URL = "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-6-6"
+HF_API_URL = "https://router.huggingface.co/hf-inference/models/google/pegasus-xsum"
 HF_TOKEN = os.environ.get("HF_TOKEN", "")
 HF_HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"}
 
@@ -79,7 +79,7 @@ def summarize_text(text: str) -> str:
     result = response.json()
 
     if isinstance(result, list) and len(result) > 0:
-        return result[0].get("generated_text", result[0].get("summary_text", ""))
+        return result[0].get("summary_text", result[0].get("generated_text", ""))
     
     raise HTTPException(status_code=500, detail="Unexpected response from HuggingFace API")
 
