@@ -1,6 +1,7 @@
 fastapi
 uvicorn
-transformers==4.38.2
+transformers==4.46.3
+tokenizers==0.20.3
 torch
 sentencepiece
 protobuf
