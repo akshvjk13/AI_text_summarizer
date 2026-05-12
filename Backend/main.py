@@ -18,7 +18,7 @@ app.add_middleware(
 )
 
 # ── HuggingFace Inference API ─────────────────────────────────────────────────
-HF_API_URL = "https://router.huggingface.co/hf-inference/models/sshleifer/distilbart-cnn-6-6"
+HF_API_URL = "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-6-6"
 HF_TOKEN = os.environ.get("HF_TOKEN", "")
 HF_HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"}
 
