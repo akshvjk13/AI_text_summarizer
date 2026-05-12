@@ -1,4 +1,6 @@
-
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,7 +13,6 @@ import io
 app = FastAPI()
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-# Allow requests from the React frontend running on localhost
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:5174"],
@@ -19,10 +20,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Lazy model loading ────────────────────────────────────────────────────────
+summarizer = None
 
-print("Loading summarization model...")
-summarizer = pipeline("summarization", model="t5-small")
-print("Model ready!")
+def get_summarizer():
+    global summarizer
+    if summarizer is None:
+        print("Loading summarization model...")
+        summarizer = pipeline("summarization", model="t5-small", device=-1)
+        print("Model ready!")
+    return summarizer
 
 # ── Request/Response schemas ──────────────────────────────────────────────────
 class SummarizeRequest(BaseModel):
@@ -33,8 +40,6 @@ class SummarizeResponse(BaseModel):
     keywords: list[str]
 
 # ── Keyword extraction helper ─────────────────────────────────────────────────
-# Uses YAKE (Yet Another Keyword Extractor) — lightweight, no model needed
-
 def extract_keywords(text: str, max_keywords: int = 8) -> list[str]:
     try:
         kw_extractor = yake.KeywordExtractor(
@@ -61,19 +66,17 @@ def extract_keywords(text: str, max_keywords: int = 8) -> list[str]:
 
     except Exception:
         return []
+
 # ── Summarization helper ──────────────────────────────────────────────────────
 def summarize_text(text: str) -> str:
-    # Truncate to first 1024 words to stay within model limits
     words = text.split()
-    if len(words) > 1024:
-        text = " ".join(words[:1024])
+    if len(words) > 512:
+        text = " ".join(words[:512])
 
-    # min/max length control how long the summary is
-    result = summarizer(text, max_length=150, min_length=40, do_sample=False)
+    result = get_summarizer()(text, max_length=150, min_length=40, do_sample=False)
     return result[0]["summary_text"]
 
 # ── ENDPOINT 1: POST /summarize ───────────────────────────────────────────────
-# Accepts plain text, returns summary + keywords
 @app.post("/summarize", response_model=SummarizeResponse)
 async def summarize(request: SummarizeRequest):
     if not request.text.strip():
@@ -84,18 +87,14 @@ async def summarize(request: SummarizeRequest):
 
     return SummarizeResponse(summary=summary, keywords=keywords)
 
-#  ENDPOINT 2: POST /upload-pdf 
-# Accepts a PDF file upload, extracts text, returns summary + keywords
+# ── ENDPOINT 2: POST /upload-pdf ─────────────────────────────────────────────
 @app.post("/upload-pdf", response_model=SummarizeResponse)
 async def upload_pdf(file: UploadFile = File(...)):
-    # Validate file type
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
-    # Read file bytes into memory
     contents = await file.read()
 
-    # Extract text using pdfplumber
     try:
         with pdfplumber.open(io.BytesIO(contents)) as pdf:
             extracted_text = ""
