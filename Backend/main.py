@@ -1,11 +1,8 @@
 import os
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
+import requests as req
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from transformers import pipeline
 import pdfplumber
 import yake
 import io
@@ -15,21 +12,15 @@ app = FastAPI()
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"],
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ── Lazy model loading ────────────────────────────────────────────────────────
-summarizer = None
-
-def get_summarizer():
-    global summarizer
-    if summarizer is None:
-        print("Loading summarization model...")
-        summarizer = pipeline("summarization", model="t5-small", device=-1)
-        print("Model ready!")
-    return summarizer
+# ── HuggingFace Inference API ─────────────────────────────────────────────────
+HF_API_URL = "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-12-6"
+HF_TOKEN = os.environ.get("HF_TOKEN", "")
+HF_HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"}
 
 # ── Request/Response schemas ──────────────────────────────────────────────────
 class SummarizeRequest(BaseModel):
@@ -73,8 +64,29 @@ def summarize_text(text: str) -> str:
     if len(words) > 512:
         text = " ".join(words[:512])
 
-    result = get_summarizer()(text, max_length=150, min_length=40, do_sample=False)
-    return result[0]["summary_text"]
+    response = req.post(
+        HF_API_URL,
+        headers=HF_HEADERS,
+        json={
+            "inputs": text,
+            "parameters": {
+                "max_length": 150,
+                "min_length": 40,
+                "do_sample": False
+            }
+        },
+        timeout=60
+    )
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=500, detail=f"HuggingFace API error: {response.text}")
+
+    result = response.json()
+
+    if isinstance(result, list) and len(result) > 0:
+        return result[0]["summary_text"]
+    
+    raise HTTPException(status_code=500, detail="Unexpected response from HuggingFace API")
 
 # ── ENDPOINT 1: POST /summarize ───────────────────────────────────────────────
 @app.post("/summarize", response_model=SummarizeResponse)
