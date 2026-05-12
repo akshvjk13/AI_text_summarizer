@@ -21,7 +21,7 @@ app.add_middleware(
 
 
 print("Loading summarization model...")
-summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6"
 print("Model ready!")
 
 # ── Request/Response schemas ──────────────────────────────────────────────────
