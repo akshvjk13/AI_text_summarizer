@@ -61,28 +61,33 @@ def extract_keywords(text: str, max_keywords: int = 8) -> list[str]:
 # ── Summarization helper ──────────────────────────────────────────────────────
 def summarize_text(text: str) -> str:
     words = text.split()
-    if len(words) > 200:
-        text = " ".join(words[:200])
+    if len(words) > 130:
+        text = " ".join(words[:130])
 
     response = req.post(
         HF_API_URL,
         headers=HF_HEADERS,
         json={
-            "inputs": f"summarize: {text}",
+            "inputs": text,
+            "parameters": {
+                "max_length": 80,
+                "min_length": 20,
+                "do_sample": False
+            }
         },
-        timeout=60
+        timeout=30
     )
 
     if response.status_code != 200:
         print(f"HF Error: {response.status_code} - {response.text}")
         raise HTTPException(status_code=500, detail=f"HuggingFace API error: {response.text}")
+
     result = response.json()
 
     if isinstance(result, list) and len(result) > 0:
         return result[0].get("summary_text", result[0].get("generated_text", ""))
     
     raise HTTPException(status_code=500, detail="Unexpected response from HuggingFace API")
-
 # ── ENDPOINT 1: POST /summarize ───────────────────────────────────────────────
 @app.post("/summarize", response_model=SummarizeResponse)
 async def summarize(request: SummarizeRequest):
