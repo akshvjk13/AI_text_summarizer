@@ -68,12 +68,7 @@ def summarize_text(text: str) -> str:
         HF_API_URL,
         headers=HF_HEADERS,
         json={
-            "inputs": text,
-            "parameters": {
-                "max_length": 150,
-                "min_length": 40,
-                "do_sample": False
-            }
+            "inputs": f"summarize: {text}",
         },
         timeout=60
     )
@@ -84,7 +79,7 @@ def summarize_text(text: str) -> str:
     result = response.json()
 
     if isinstance(result, list) and len(result) > 0:
-        return result[0]["summary_text"]
+        return result[0].get("generated_text", result[0].get("summary_text", ""))
     
     raise HTTPException(status_code=500, detail="Unexpected response from HuggingFace API")
 
