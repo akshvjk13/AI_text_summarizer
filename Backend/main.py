@@ -74,8 +74,8 @@ def summarize_text(text: str) -> str:
     )
 
     if response.status_code != 200:
+        print(f"HF Error: {response.status_code} - {response.text}")
         raise HTTPException(status_code=500, detail=f"HuggingFace API error: {response.text}")
-
     result = response.json()
 
     if isinstance(result, list) and len(result) > 0:
