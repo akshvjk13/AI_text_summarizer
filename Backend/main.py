@@ -61,8 +61,8 @@ def extract_keywords(text: str, max_keywords: int = 8) -> list[str]:
 # ── Summarization helper ──────────────────────────────────────────────────────
 def summarize_text(text: str) -> str:
     words = text.split()
-    if len(words) > 512:
-        text = " ".join(words[:512])
+    if len(words) > 200:
+        text = " ".join(words[:200])
 
     response = req.post(
         HF_API_URL,
